@@ -1,0 +1,55 @@
+[package]
+name = "md-ingest"
+version = "0.1.0"
+edition = "2021"
+description = "BTC market data ingestion service — spot, options, perps"
+
+[[bin]]
+name = "md-ingest"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+
+# WebSocket
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+futures-util = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Decimal precision
+rust_decimal = { version = "1", features = ["serde-with-str"] }
+rust_decimal_macros = "1"
+
+# Timestamps
+chrono = { version = "0.4", features = ["serde"] }
+
+# Parquet / Arrow
+arrow = { version = "53", features = ["chrono-tz"] }
+parquet = { version = "53", features = ["arrow"] }
+
+# Redis
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+
+# Metrics
+prometheus = "0.13"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1"] }
+http-body-util = "0.1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+# Misc
+uuid = { version = "1", features = ["v4", "serde"] }
+rand = "0.8"
+lru = "0.12"
+url = "2"
+thiserror = "2"
+anyhow = "1"

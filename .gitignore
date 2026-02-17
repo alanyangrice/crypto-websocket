@@ -1,0 +1,23 @@
+# Rust build artifacts
+target/
+
+# Parquet data lake (persisted locally, not committed)
+/data/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
+
+# Redis dump
+dump.rdb

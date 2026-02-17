@@ -1,0 +1,67 @@
+[general]
+data_dir = "./data"
+metrics_bind = "0.0.0.0:9090"
+
+[connectors.kraken]
+enabled = true
+url = "wss://ws.kraken.com/v2"
+symbols = ["BTC/USD"]
+
+[connectors.coinbase]
+enabled = true
+url = "wss://advanced-trade-ws.coinbase.com"
+products = ["BTC-USD"]
+# jwt = "optional-jwt-token"
+
+[connectors.deribit]
+enabled = true
+url = "wss://www.deribit.com/ws/api/v2"
+currency = "BTC"
+max_expiries = 4
+strike_range_factor = 0.5
+max_instruments_per_expiry = 80
+instrument_refresh_secs = 900
+ticker_staleness_ms = 10000
+
+[connectors.binance]
+enabled = true
+url = "wss://fstream.binance.com"
+symbol = "btcusdt"
+
+[router]
+ingress_buffer = 16384
+derived_buffer = 4096
+parquet_buffer = 65536
+redis_buffer = 8192
+pipeline_buffer = 4096
+
+[pipeline.spot_mid]
+interval_ms = 1000
+divergence_threshold_bps = 20.0
+staleness_ms = 5000
+
+[pipeline.iv_surface]
+interval_ms = 15000
+staleness_ms = 10000
+
+[sinks.parquet]
+schema_version = "v1"
+buffer_rows = 10000
+flush_interval_ms = 60000
+price_scale = 100000000
+
+[sinks.redis]
+enabled = true
+url = "redis://127.0.0.1:6379"
+key_prefix = "md:v1"
+pubsub_enabled = true
+pubsub_channel = "md:v1:updates"
+write_timeout_ms = 50
+health_update_ms = 2000
+max_pending_keys = 10000
+spot_mid_window_len = 300
+iv_surface_window_len = 60
+
+[supervisor]
+max_restarts_per_window = 5
+restart_window_secs = 300
