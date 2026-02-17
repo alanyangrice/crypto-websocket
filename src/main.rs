@@ -19,15 +19,18 @@ use crate::router::EventRouter;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // 0. Install TLS crypto provider before any connections
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("failed to install rustls crypto provider");
+
     // 1. Init logging
     ops::logging::init();
 
     info!("md-ingest starting");
 
     // 2. Load config
-    let config_path = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "config.toml".into());
+    let config_path = parse_config_path();
     let config = AppConfig::load(&config_path)?;
     info!(config_path = %config_path, "configuration loaded");
 
@@ -48,17 +51,13 @@ async fn main() -> anyhow::Result<()> {
 
     // 5. Spawn Parquet sink (singleton, non-restartable)
     let parquet_handle = {
-        let config = config.sinks.parquet.clone();
-        let data_dir = config::GeneralConfig {
-            data_dir: config::AppConfig::load(&config_path)?.general.data_dir,
-            metrics_bind: String::new(),
-        }
-        .data_dir;
+        let pq_config = config.sinks.parquet.clone();
+        let data_dir = config.general.data_dir.clone();
         let health = health.clone();
         let metrics = metrics.parquet.clone();
         let cancel = cancel.clone();
         tokio::spawn(async move {
-            sinks::parquet::run(config, data_dir, parquet_rx, health, metrics, cancel).await;
+            sinks::parquet::run(pq_config, data_dir, parquet_rx, health, metrics, cancel).await;
         })
     };
 
@@ -182,3 +181,21 @@ async fn main() -> anyhow::Result<()> {
 }
 
 use std::time::Duration;
+
+fn parse_config_path() -> String {
+    let args: Vec<String> = std::env::args().collect();
+
+    // Support: md-ingest config.toml
+    //          md-ingest --config config.toml
+    //          md-ingest -c config.toml
+    //          md-ingest (defaults to config.toml)
+    for i in 1..args.len() {
+        if (args[i] == "--config" || args[i] == "-c") && i + 1 < args.len() {
+            return args[i + 1].clone();
+        }
+        if !args[i].starts_with('-') {
+            return args[i].clone();
+        }
+    }
+    "config.toml".into()
+}

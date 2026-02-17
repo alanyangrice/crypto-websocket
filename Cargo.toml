@@ -15,6 +15,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 
 # WebSocket
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+rustls = { version = "0.23", features = ["ring"] }
 futures-util = "0.3"
 
 # Serialization

@@ -10,7 +10,8 @@ use std::num::NonZeroUsize;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -22,7 +23,35 @@ pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub type WsSink = SplitSink<WsStream, tokio_tungstenite::tungstenite::Message>;
 pub type WsSource = SplitStream<WsStream>;
 
+/// Connect with TCP_NODELAY enabled for minimum latency.
+///
+/// Nagle's algorithm (enabled by default) buffers small TCP writes for up to
+/// 40ms to coalesce them. Disabling it (TCP_NODELAY = true) ensures every
+/// WebSocket frame is sent/received immediately, which typically shaves
+/// 20-40ms off measured latency.
+async fn connect_with_nodelay(
+    url: &str,
+) -> Result<WsStream, tokio_tungstenite::tungstenite::Error> {
+    let request = url.into_client_request()?;
+    let (ws, _response) = tokio_tungstenite::connect_async(request).await?;
+
+    // Enable TCP_NODELAY on the underlying socket
+    match ws.get_ref() {
+        MaybeTlsStream::Plain(tcp) => {
+            let _ = tcp.set_nodelay(true);
+        }
+        MaybeTlsStream::Rustls(tls) => {
+            let (tcp, _) = tls.get_ref();
+            let _ = tcp.set_nodelay(true);
+        }
+        _ => {}
+    }
+
+    Ok(ws)
+}
+
 /// Exponential backoff with jitter for WS reconnections.
+/// Uses TCP_NODELAY to minimize latency on established connections.
 pub async fn connect_with_backoff(
     url: &str,
     venue: Venue,
@@ -31,19 +60,25 @@ pub async fn connect_with_backoff(
     max_backoff: Duration,
 ) -> (WsStream, Uuid) {
     let mut delay = Duration::from_secs(1);
-    let _session_id = loop {
+    loop {
         health.set_venue_state(venue, ConnectorState::Reconnecting);
-        match connect_async(url).await {
-            Ok((ws, _response)) => {
+        match connect_with_nodelay(url).await {
+            Ok(ws) => {
                 let sid = Uuid::new_v4();
                 health.set_venue_state(venue, ConnectorState::Connected);
                 health.set_venue_session(venue, sid);
-                metrics.connected.with_label_values(&[&venue.to_string()]).set(1);
-                info!(venue = %venue, session_id = %sid, "websocket connected");
+                metrics
+                    .connected
+                    .with_label_values(&[&venue.to_string()])
+                    .set(1);
+                info!(venue = %venue, session_id = %sid, "websocket connected (TCP_NODELAY)");
                 return (ws, sid);
             }
             Err(e) => {
-                metrics.reconnects_total.with_label_values(&[&venue.to_string()]).inc();
+                metrics
+                    .reconnects_total
+                    .with_label_values(&[&venue.to_string()])
+                    .inc();
                 health.increment_reconnects(venue);
                 let jitter = rand::thread_rng().gen_range(0.75..1.25);
                 let actual_delay = delay.mul_f64(jitter);
@@ -57,7 +92,7 @@ pub async fn connect_with_backoff(
                 delay = (delay * 2).min(max_backoff);
             }
         }
-    };
+    }
 }
 
 /// Trade deduplication cache keyed by trade_id string.
