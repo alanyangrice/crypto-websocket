@@ -84,6 +84,7 @@ pub async fn run(
 
         loop {
             tokio::select! {
+                biased;
                 msg = stream.next() => {
                     match msg {
                         Some(Ok(Message::Text(text))) => {
@@ -206,7 +207,7 @@ async fn handle_message(
                         .unwrap_or(Decimal::ZERO),
                     exchange_ts,
                 };
-                let _ = ingress_tx.send(event).await;
+                let _ = ingress_tx.try_send(event);
             }
         }
         "trade" => {
@@ -245,7 +246,7 @@ async fn handle_message(
                     trade_id: tid,
                     exchange_ts,
                 };
-                let _ = ingress_tx.send(event).await;
+                let _ = ingress_tx.try_send(event);
             }
         }
         _ => {}

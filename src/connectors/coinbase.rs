@@ -75,6 +75,7 @@ pub async fn run(
 
         loop {
             tokio::select! {
+                biased;
                 msg = stream.next() => {
                     match msg {
                         Some(Ok(Message::Text(text))) => {
@@ -205,7 +206,7 @@ async fn handle_message(
                             trade_id: tid,
                             exchange_ts,
                         };
-                        let _ = ingress_tx.send(ev).await;
+                        let _ = ingress_tx.try_send(ev);
                     }
                 }
             }
@@ -234,7 +235,7 @@ async fn handle_message(
                             ask_sz: parse_decimal(ticker.best_ask_quantity.as_deref()),
                             exchange_ts: None,
                         };
-                        let _ = ingress_tx.send(ev).await;
+                        let _ = ingress_tx.try_send(ev);
                     }
                 }
             }

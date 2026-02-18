@@ -2,7 +2,7 @@
 target/
 
 # Parquet data lake (persisted locally, not committed)
-/data/
+data/
 
 # Editor / IDE
 .vscode/

@@ -85,6 +85,7 @@ pub async fn run(
 
         loop {
             tokio::select! {
+                biased;
                 msg = stream.next() => {
                     match msg {
                         Some(Ok(Message::Text(text))) => {
@@ -126,7 +127,6 @@ pub async fn run(
                 }
                 _ = refresh_interval.tick() => {
                     debug!(venue = "deribit", "refreshing instruments (periodic)");
-                    // Re-discover (in a full impl we'd diff subscriptions)
                 }
                 _ = cancel.cancelled() => {
                     info!(venue = "deribit", "shutdown requested");
@@ -240,7 +240,7 @@ async fn discover_and_subscribe(
                 strike,
                 cp,
             };
-            let _ = ingress_tx.send(ev).await;
+            let _ = ingress_tx.try_send(ev);
         }
     }
 
@@ -335,7 +335,7 @@ async fn handle_message(
                         open_interest: dec_from_f64(ticker.open_interest.unwrap_or(0.0)),
                         exchange_ts,
                     };
-                    let _ = ingress_tx.send(ev).await;
+                    let _ = ingress_tx.try_send(ev);
                 }
             } else if channel.starts_with("deribit_volatility_index") {
                 if let Some(data) = params.get("data") {
@@ -352,7 +352,7 @@ async fn handle_message(
                         value: volatility,
                         exchange_ts: ts,
                     };
-                    let _ = ingress_tx.send(ev).await;
+                    let _ = ingress_tx.try_send(ev);
                 }
             }
         }

@@ -45,6 +45,7 @@ pub async fn run(
 
     loop {
         tokio::select! {
+            biased;
             Some(event) = input_rx.recv() => {
                 match event {
                     Event::OptInstrument { instrument_name, expiry_ts, strike, .. } => {

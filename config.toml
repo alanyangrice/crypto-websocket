@@ -38,11 +38,11 @@ pipeline_buffer = 4096
 [pipeline.spot_mid]
 interval_ms = 1000
 divergence_threshold_bps = 20.0
-staleness_ms = 5000
+staleness_ms = 3000
 
 [pipeline.iv_surface]
-interval_ms = 15000
-staleness_ms = 10000
+interval_ms = 1000
+staleness_ms = 3000
 
 [sinks.parquet]
 schema_version = "v1"

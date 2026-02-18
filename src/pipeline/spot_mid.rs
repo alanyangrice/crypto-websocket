@@ -36,6 +36,7 @@ pub async fn run(
 
     loop {
         tokio::select! {
+            biased;
             Some(event) = input_rx.recv() => {
                 if let Event::SpotBbo { venue, bid_px, ask_px, exchange_ts, .. } = event {
                     latest.insert(venue, VenueBbo {
